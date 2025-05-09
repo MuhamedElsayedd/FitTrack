@@ -1,4 +1,4 @@
-# Fitness-Tracker-Dashboard
+# FitTrack
 A Fitness Tracker Dashboard is a web application designed to help users monitor their fitness activities, track progress, and analyze health metrics. The dashboard provides an interactive and user-friendly interface to log workouts, set fitness goals, and visualize progress through dynamic charts and statistics.
 
 🚀 Features
