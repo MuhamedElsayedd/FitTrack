@@ -1,5 +1,6 @@
 # FitTrack - Your Personal Fitness Dashboard
 
+<img src="/favicon.png" alt="FitTrack Logo" width="40" height="40" />
 ![FitTrack Logo](/favicon.png)  
 *A complete fitness tracking solution to monitor your health journey*
 
