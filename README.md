@@ -1,6 +1,6 @@
 # FitTrack - Your Personal Fitness Dashboard
 
-![FitTrack Logo](https://via.placeholder.com/150x50?text=FitTrack+Logo)  
+![FitTrack Logo](/favicon.png)  
 *A complete fitness tracking solution to monitor your health journey*
 
 FitTrack is a web application designed to help users monitor fitness activities, track progress, and analyze health metrics. The dashboard provides an interactive interface to log workouts, set goals, and visualize progress through dynamic charts.
