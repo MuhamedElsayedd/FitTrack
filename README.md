@@ -36,6 +36,10 @@ FitTrack is a Dashboard web app designed to help users monitor fitness activitie
 - 🔒 Private profile management
 - 📱 Fully responsive design (mobile & desktop)
 
+- ## 🎨 Design-to-Code Implementation
+
+We've meticulously translated the [Figma design]([https://www.figma.com/design/yNEgtx22btBS5E2v1FbLqw/FitTrack?node-id=0-1&t=250EkB77HfZMBjon-0](https://www.figma.com/design/yNEgtx22btBS5E2v1FbLqw/FitTrack?node-id=0-1&p=f&t=250EkB77HfZMBjon-0))
+
 ## 🛠️ Technology Stack
 - Frontend: React.js with Chart.js
 - Backend: Next.js App Router
