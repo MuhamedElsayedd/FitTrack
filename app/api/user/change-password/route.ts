@@ -4,7 +4,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import bcrypt from "bcrypt";
 
-// Change password
+
 export async function POST(request: Request) {
   try {
     const { newPassword } = await request.json();
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       );
     }
     
-    // Get auth token from cookies
+    
     const cookieStore = await cookies();
     const authToken = cookieStore.get("auth-token");
     
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       );
     }
     
-    // Extract user ID from token
+    
     const tokenParts = authToken.value.split("-");
     if (tokenParts.length < 3 || tokenParts[0] !== "user") {
       return NextResponse.json(
