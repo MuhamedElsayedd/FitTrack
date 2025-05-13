@@ -1,12 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Overview } from "@/components/dashboard/overview"
 import { RecentActivities } from "@/components/dashboard/recent-activities"
 import { Button } from "@/components/ui/button"
-import { CalendarIcon, LayoutDashboard, LineChart, ListChecks, Plus, Utensils, X } from "lucide-react"
+import { 
+  CalendarIcon, 
+  LayoutDashboard, 
+  LineChart, 
+  ListChecks, 
+  LogOut, 
+  Plus, 
+  Settings, 
+  Utensils, 
+  X 
+} from "lucide-react"
 import { GoalProgress } from "@/components/dashboard/goal-progress"
 import { ActivitySummary } from "@/components/dashboard/activity-summary"
 import { NutritionTracker } from "@/components/dashboard/nutrition-tracker"
@@ -25,16 +36,253 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { AddWorkoutDialog } from "@/components/dashboard/add-workout-dialog"
+import { AddMealDialog } from "@/components/dashboard/add-meal-dialog"
+import { WorkoutSession } from "@/components/dashboard/workout-session"
+import { useRouter } from 'next/navigation';
+import { toast } from "@/components/ui/use-toast";
+import { deleteAccount, updateUserProfile, updateUserPreferences, changePassword, getUserProfile } from "@/lib/api";
+import { DeleteAccountDialog } from "@/components/dashboard/delete-account-dialog";
 
 export default function Dashboard() {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get("tab")
+  const router = useRouter();
+
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [date, setDate] = useState<Date | undefined>(undefined)
   const [activityType, setActivityType] = useState<string | undefined>(undefined)
+  const [isAddWorkoutOpen, setIsAddWorkoutOpen] = useState(false)
+  // Add state for the AddMealDialog
+  const [isAddMealOpen, setIsAddMealOpen] = useState(false)
+  const [mealDate, setMealDate] = useState<Date>(new Date())
+  const [mealType, setMealType] = useState<string | undefined>(undefined)
+  // Add this state to track when activities should refresh
+  const [activitiesKey, setActivitiesKey] = useState(0)
+  const [activitiesRefreshTrigger, setActivitiesRefreshTrigger] = useState(0)
+  const [nutritionRefreshTrigger, setNutritionRefreshTrigger] = useState(0)
+  const [workoutsRefreshTrigger, setWorkoutsRefreshTrigger] = useState(0)
+  const [activeWorkout, setActiveWorkout] = useState<any | null>(null)
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [weeklyReports, setWeeklyReports] = useState(true);
+  const [units, setUnits] = useState("metric");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const handleLogout = () => {
+    // Remove the auth token from localStorage
+    localStorage.removeItem('auth-token');
+    
+    // Remove the auth cookie
+    document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    
+    // Redirect to home page
+    router.push('/');
+  };
+
+  const handleDeleteAccount = async () => {
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      "Are you sure you want to delete your account? This action cannot be undone and will delete all your data."
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      await deleteAccount();
+      
+      toast({
+        title: "Account deleted",
+        description: "Your account has been successfully deleted"
+      });
+      
+      // Clear auth token and redirect to home page
+      document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
+      localStorage.removeItem('auth-token');
+      
+      // Redirect to home page
+      window.location.href = '/';
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete account",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Set active tab based on URL parameter
+  useEffect(() => {
+    if (tabParam && ["overview", "activities", "nutrition", "workouts"].includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam])
 
   const clearFilters = () => {
     setDate(undefined)
     setActivityType(undefined)
+  }
+
+  // Function to trigger activities refresh
+  const refreshActivities = () => {
+    setActivitiesKey(prevKey => prevKey + 1)
+    setActivitiesRefreshTrigger(prev => prev + 1)
+  }
+
+  // Function to refresh nutrition entries
+  const refreshNutrition = () => {
+    setNutritionRefreshTrigger(prev => prev + 1)
+  }
+
+  // Function to refresh workouts
+  const refreshWorkouts = () => {
+    setWorkoutsRefreshTrigger(prev => prev + 1)
+  }
+
+  // Handle start workout
+  const handleStartWorkout = (workout: any) => {
+    setActiveWorkout(workout)
+  }
+
+  // Handle complete workout
+  const handleCompleteWorkout = () => {
+    setActiveWorkout(null)
+    refreshWorkouts()
+  }
+
+  // Handle cancel workout
+  const handleCancelWorkout = () => {
+    if (confirm("Are you sure you want to cancel this workout? Your progress will be lost.")) {
+      setActiveWorkout(null)
+    }
+  }
+
+  useEffect(() => {
+    // Fetch user profile data when component mounts
+    const fetchUserProfile = async () => {
+      try {
+        const userData = await getUserProfile();
+        if (userData) {
+          setName(userData.name || "");
+          setEmail(userData.email || "");
+          setEmailNotifications(userData.preferences?.emailNotifications ?? true);
+          setWeeklyReports(userData.preferences?.weeklyReports ?? true);
+          setUnits(userData.preferences?.units || "metric");
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load user profile",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  const handleSaveChanges = async () => {
+    setIsUpdatingProfile(true);
+    try {
+      // Update profile information
+      await updateUserProfile({ name, email });
+      
+      // Update preferences
+      await updateUserPreferences({
+        emailNotifications,
+        weeklyReports,
+        units
+      });
+      
+      toast({
+        title: "Settings updated",
+        description: "Your profile and preferences have been updated successfully"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update settings",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    // Validate passwords
+    if (!newPassword) {
+      toast({
+        title: "Error",
+        description: "Please enter a new password",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsUpdatingPassword(true);
+    try {
+      await changePassword({ newPassword });
+      
+      toast({
+        title: "Password updated",
+        description: "Your password has been changed successfully"
+      });
+      
+      // Clear password fields
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change password",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  // Add these functions to handle nutrition-related actions
+  const handleMealAdded = () => {
+    // Refresh nutrition data when a meal is added
+    setNutritionRefreshTrigger(prev => prev + 1);
+    
+    // Show success toast
+    toast({
+      title: "Meal added",
+      description: "Your meal has been recorded successfully"
+    });
+  }
+
+  const handleMealDeleted = () => {
+    // Refresh nutrition data when a meal is deleted
+    setNutritionRefreshTrigger(prev => prev + 1);
+    
+    // Show success toast
+    toast({
+      title: "Meal deleted",
+      description: "Your meal has been removed successfully"
+    });
   }
 
   return (
@@ -42,20 +290,11 @@ export default function Dashboard() {
       <div className="flex h-screen w-full">
         <Sidebar className="border-r" variant="sidebar" collapsible="icon">
           <div className="flex h-16 items-center border-b px-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-6 w-6 mr-2"
-            >
-              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-              <path d="M7 14.5s0 .5 1.5.5 2-1 3.5-1 2.5 1 3.5 1 1.5-.5 1.5-.5" />
-              <path d="M7 9.5s0 .5 1.5.5 2-1 3.5-1 2.5 1 3.5 1 1.5-.5 1.5-.5" />
-            </svg>
+            <img 
+              src="/favicon.png" 
+              alt="FitTrack Logo" 
+              className="h-6 w-6 mr-2" 
+            />
             <span className="font-bold">FitTrack</span>
           </div>
           <div className="px-3 py-4">
@@ -93,6 +332,30 @@ export default function Dashboard() {
                 <span>Workouts</span>
               </SidebarMenuButton>
             </div>
+          </div>
+          
+          {/* Add a spacer to push the settings button to the bottom */}
+          <div className="flex-1"></div>
+          
+          {/* Settings and logout buttons at the bottom */}
+          <div className="px-3 py-4 border-t">
+            <SidebarMenuButton 
+              isActive={activeTab === "settings"} 
+              onClick={() => setActiveTab("settings")}
+              tooltip="Settings"
+            >
+              <Settings className="h-5 w-5 mr-2" />
+              <span>Settings</span>
+            </SidebarMenuButton>
+            
+            <SidebarMenuButton 
+              onClick={handleLogout}
+              tooltip="Log Out"
+              className="mt-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+            >
+              <LogOut className="h-5 w-5 mr-2" />
+              <span>Log Out</span>
+            </SidebarMenuButton>
           </div>
         </Sidebar>
         <SidebarInset className="flex-1 overflow-auto">
@@ -229,7 +492,7 @@ export default function Dashboard() {
                   <Card className="col-span-3">
                     <CardHeader>
                       <CardTitle>Recent Activities</CardTitle>
-                      <CardDescription>You completed 6 activities this week</CardDescription>
+                      <CardDescription>You have New Activities this week</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <RecentActivities />
@@ -342,7 +605,8 @@ export default function Dashboard() {
                     <RecentActivities 
                       extended={true} 
                       date={date} 
-                      activityType={activityType} 
+                      activityType={activityType}
+                      key={activitiesKey} 
                     />
                   </CardContent>
                 </Card>
@@ -350,63 +614,228 @@ export default function Dashboard() {
               <TabsContent value="nutrition" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Nutrition Tracker</CardTitle>
-                    <CardDescription>Track your daily nutrition and calorie intake</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          Today
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Utensils className="mr-2 h-4 w-4" />
-                          Meal type
-                        </Button>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Nutrition Tracker</CardTitle>
+                        <CardDescription>Track your daily nutrition and calorie intake</CardDescription>
                       </div>
-                      <Button size="sm">
+                      <Button size="sm" onClick={() => setIsAddMealOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" /> Add Meal
                       </Button>
                     </div>
-                    <NutritionTracker />
+                  </CardHeader>
+                  <CardContent>
+                    <NutritionTracker 
+                      refreshTrigger={nutritionRefreshTrigger} 
+                      onMealDeleted={handleMealDeleted}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
               <TabsContent value="workouts" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Workout Planner</CardTitle>
-                    <CardDescription>Plan and track your workout routines</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          Schedule
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <ListChecks className="mr-2 h-4 w-4" />
-                          Routines
+                {activeWorkout ? (
+                  <WorkoutSession
+                    workout={activeWorkout}
+                    onComplete={handleCompleteWorkout}
+                    onCancel={handleCancelWorkout}
+                  />
+                ) : (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Workout Planner</CardTitle>
+                      <CardDescription>Schedule and track your workout routines</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-2">
+                        </div>
+                        <Button size="sm" onClick={() => setIsAddWorkoutOpen(true)}>
+                          <Plus className="mr-2 h-4 w-4" /> Add Workout
                         </Button>
                       </div>
-                      <Button size="sm">
-                        <Plus className="mr-2 h-4 w-4" /> New Workout
-                      </Button>
+                      <WorkoutPlanner 
+                        refreshTrigger={workoutsRefreshTrigger} 
+                        onWorkoutDeleted={refreshWorkouts}
+                        onStartWorkout={handleStartWorkout}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+              
+              {/* Settings Tab */}
+              <TabsContent value="settings" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Settings</CardTitle>
+                    <CardDescription>Manage your account and application preferences</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-8">
+                      {/* Profile Section */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-lg font-medium">Profile</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Manage your profile information and preferences
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input 
+                              id="name" 
+                              className="max-w-md"
+                              placeholder="Your name"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                            />
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input 
+                              id="email" 
+                              type="email"
+                              className="max-w-md"
+                              placeholder="Your email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Preferences Section */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-lg font-medium">Preferences</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Customize your dashboard experience
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="emailNotifications" 
+                              checked={emailNotifications}
+                              onCheckedChange={(checked) => setEmailNotifications(checked as boolean)}
+                            />
+                            <Label htmlFor="emailNotifications">Email notifications</Label>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="weeklyReports" 
+                              checked={weeklyReports}
+                              onCheckedChange={(checked) => setWeeklyReports(checked as boolean)}
+                            />
+                            <Label htmlFor="weeklyReports">Weekly progress reports</Label>
+                          </div>
+                          
+                          <div className="grid gap-2">
+                            <Label htmlFor="units">Units</Label>
+                            <Select value={units} onValueChange={setUnits}>
+                              <SelectTrigger className="max-w-md">
+                                <SelectValue placeholder="Select units" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="metric">Metric (kg, km)</SelectItem>
+                                <SelectItem value="imperial">Imperial (lb, mi)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Account Section */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-lg font-medium">Account</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Manage your account settings
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="new-password">Change Password</Label>
+                            <div className="flex flex-col space-y-2 max-w-md">
+                              <Input 
+                                id="new-password" 
+                                type="password"
+                                placeholder="New password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                              />
+                              <Input 
+                                id="confirm-password" 
+                                type="password"
+                                placeholder="Confirm new password"
+                                value={confirmNewPassword}
+                                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                              />
+                              <Button 
+                                variant="outline" 
+                                onClick={handleChangePassword}
+                                disabled={isUpdatingPassword}
+                                className="self-start mt-1"
+                              >
+                                {isUpdatingPassword ? "Updating..." : "Update Password"}
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="pt-4">
+                            <DeleteAccountDialog />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pt-4 border-t">
+                        <Button 
+                          onClick={handleSaveChanges}
+                          disabled={isUpdatingProfile}
+                          className="mr-4"
+                        >
+                          {isUpdatingProfile ? "Saving..." : "Save Changes"}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={handleLogout}
+                        >
+                          Log Out
+                        </Button>
+                      </div>
                     </div>
-                    <WorkoutPlanner />
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
           </div>
-          <AddActivityDialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen} />
+          <AddActivityDialog 
+            open={isAddActivityOpen} 
+            onOpenChange={setIsAddActivityOpen} 
+            onActivityAdded={refreshActivities}
+          />
+          <AddWorkoutDialog open={isAddWorkoutOpen} onOpenChange={setIsAddWorkoutOpen} />
+          <AddMealDialog 
+            open={isAddMealOpen} 
+            onOpenChange={setIsAddMealOpen} 
+            onMealAdded={handleMealAdded}
+          />
         </SidebarInset>
       </div>
     </SidebarProvider>
   )
 }
+
+
+
+
+
 
 
 

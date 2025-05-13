@@ -25,6 +25,42 @@ export async function addActivity(activity: any) {
   return response.json()
 }
 
+export async function deleteActivity(id: string) {
+  console.log("Deleting activity with ID:", id)
+  
+  const response = await fetch(`/api/activities/${id}`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    console.error("Delete activity error:", response.status, errorData)
+    throw new Error(errorData.error || "Failed to delete activity")
+  }
+
+  return response.json()
+}
+
+export async function updateActivity(id: string, activity: any) {
+  console.log("Updating activity with ID:", id, activity)
+  
+  const response = await fetch(`/api/activities/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(activity),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    console.error("Update activity error:", response.status, errorData)
+    throw new Error(errorData.error || "Failed to update activity")
+  }
+
+  return response.json()
+}
+
 // Goals
 export async function getGoals() {
   const response = await fetch("/api/goals")
@@ -85,7 +121,22 @@ export async function addNutritionEntry(entry: any) {
   })
 
   if (!response.ok) {
-    throw new Error("Failed to add nutrition entry")
+    const errorData = await response.json().catch(() => ({}))
+    console.error("Failed to add nutrition entry:", response.status, errorData)
+    throw new Error(errorData.error || "Failed to add nutrition entry")
+  }
+
+  return response.json()
+}
+
+export async function deleteNutritionEntry(entryId: string) {
+  const response = await fetch(`/api/nutrition/${entryId}`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || "Failed to delete nutrition entry")
   }
 
   return response.json()
@@ -115,3 +166,154 @@ export async function addWorkout(workout: any) {
 
   return response.json()
 }
+
+export async function deleteWorkout(id: string) {
+  console.log("Deleting workout with ID:", id)
+  
+  const response = await fetch(`/api/workouts/${id}`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    console.error("Delete workout error:", response.status, errorData)
+    throw new Error(errorData.error || "Failed to delete workout")
+  }
+
+  return response.json()
+}
+
+// Authentication
+export async function signup(userData: { name: string; email: string; password: string }) {
+  const response = await fetch("/api/auth/signup", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(userData),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to sign up")
+  }
+
+  return response.json()
+}
+
+export async function login(credentials: { email: string; password: string }) {
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(credentials),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Failed to log in")
+  }
+
+  return response.json()
+}
+
+export async function deleteAccount() {
+  try {
+    const response = await fetch('/api/auth/delete-account', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete account');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    throw error;
+  }
+}
+
+// User profile
+export async function getUserProfile() {
+  const response = await fetch("/api/user/profile")
+  if (!response.ok) {
+    throw new Error("Failed to fetch user profile")
+  }
+  return response.json()
+}
+
+export async function updateUserProfile(profileData: { name?: string; email?: string }) {
+  const response = await fetch("/api/user/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(profileData),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || "Failed to update profile")
+  }
+
+  return response.json()
+}
+
+export async function updateUserPreferences(preferences: { 
+  emailNotifications?: boolean; 
+  weeklyReports?: boolean; 
+  units?: string 
+}) {
+  const response = await fetch("/api/user/preferences", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(preferences),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || "Failed to update preferences")
+  }
+
+  return response.json()
+}
+
+export async function changePassword(data: { newPassword: string }) {
+  const response = await fetch("/api/user/change-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || "Failed to change password")
+  }
+
+  return response.json()
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

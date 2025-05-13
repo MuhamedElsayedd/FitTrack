@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -11,34 +11,85 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { CalendarIcon } from "lucide-react"
-import { addActivity } from "@/lib/api"
+import { updateActivity } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 
-interface AddActivityDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onActivityAdded?: () => void
+interface Activity {
+  _id: string
+  type: string
+  duration: string
+  distance: string | null
+  calories: number
+  date: string
 }
 
-export function AddActivityDialog({ 
+interface EditActivityDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  activity: Activity
+  onActivityUpdated?: () => void
+}
+
+export function EditActivityDialog({ 
   open, 
   onOpenChange,
-  onActivityAdded 
-}: AddActivityDialogProps) {
-  const [activityType, setActivityType] = useState<string>("")
-  const [duration, setDuration] = useState<string>("")
-  const [durationUnit, setDurationUnit] = useState<string>("minutes")
-  const [distance, setDistance] = useState<string>("")
-  const [distanceUnit, setDistanceUnit] = useState<string>("km")
-  const [calories, setCalories] = useState<string>("")
-  const [date, setDate] = useState<Date>(new Date())
+  activity,
+  onActivityUpdated
+}: EditActivityDialogProps) {
+  // Parse duration from "X minutes/hours" format
+  const parseDuration = (durationStr: string) => {
+    const parts = durationStr.split(' ')
+    return {
+      value: parts[0],
+      unit: parts[1] || 'minutes'
+    }
+  }
+  
+  // Parse distance from "X km/mi" format
+  const parseDistance = (distanceStr: string | null) => {
+    if (!distanceStr) return { value: '', unit: 'km' }
+    const parts = distanceStr.split(' ')
+    return {
+      value: parts[0],
+      unit: parts[1] || 'km'
+    }
+  }
+  
+  const initialDuration = parseDuration(activity.duration)
+  const initialDistance = parseDistance(activity.distance)
+  
+  const [activityType, setActivityType] = useState(activity.type)
+  const [duration, setDuration] = useState(initialDuration.value)
+  const [durationUnit, setDurationUnit] = useState(initialDuration.unit)
+  const [distance, setDistance] = useState(initialDistance.value)
+  const [distanceUnit, setDistanceUnit] = useState(initialDistance.unit)
+  const [calories, setCalories] = useState(activity.calories.toString())
+  const [date, setDate] = useState<Date>(new Date(activity.date))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  // Update form when activity changes
+  useEffect(() => {
+    if (activity) {
+      setActivityType(activity.type)
+      
+      const durationParts = parseDuration(activity.duration)
+      setDuration(durationParts.value)
+      setDurationUnit(durationParts.unit)
+      
+      const distanceParts = parseDistance(activity.distance)
+      setDistance(distanceParts.value)
+      setDistanceUnit(distanceParts.unit)
+      
+      setCalories(activity.calories.toString())
+      setDate(new Date(activity.date))
+    }
+  }, [activity])
 
   const handleSubmit = async () => {
     if (!activityType || !duration || !calories) {
       toast({
-        title: "Missing required fields",
+        title: "Missing fields",
         description: "Please fill in all required fields",
         variant: "destructive"
       })
@@ -54,7 +105,7 @@ export function AddActivityDialog({
       // Format distance with unit if provided
       const formattedDistance = distance ? `${distance} ${distanceUnit}` : null
 
-      const newActivity = {
+      const updatedActivity = {
         type: activityType,
         duration: formattedDuration,
         distance: formattedDistance,
@@ -62,33 +113,27 @@ export function AddActivityDialog({
         date: date.toISOString()
       }
 
-      await addActivity(newActivity)
+      console.log("Submitting updated activity:", activity._id, updatedActivity)
       
-      // Reset form
-      setActivityType("")
-      setDuration("")
-      setDurationUnit("minutes")
-      setDistance("")
-      setDistanceUnit("km")
-      setCalories("")
-      setDate(new Date())
+      await updateActivity(activity._id, updatedActivity)
       
       toast({
-        title: "Activity added",
-        description: "Your activity has been recorded successfully"
+        title: "Activity updated",
+        description: "Your activity has been updated successfully"
       })
       
       // Call the callback to refresh activities
-      if (onActivityAdded) {
-        onActivityAdded()
+      if (onActivityUpdated) {
+        onActivityUpdated()
       }
       
+      // Close the dialog
       onOpenChange(false)
     } catch (error) {
-      console.error("Failed to add activity:", error)
+      console.error("Failed to update activity:", error)
       toast({
         title: "Error",
-        description: "Failed to add activity. Please try again.",
+        description: "Failed to update activity",
         variant: "destructive"
       })
     } finally {
@@ -100,8 +145,8 @@ export function AddActivityDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add Activity</DialogTitle>
-          <DialogDescription>Record a new fitness activity to track your progress.</DialogDescription>
+          <DialogTitle>Edit Activity</DialogTitle>
+          <DialogDescription>Update your fitness activity details.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -116,9 +161,9 @@ export function AddActivityDialog({
                 <SelectItem value="Running">Running</SelectItem>
                 <SelectItem value="Cycling">Cycling</SelectItem>
                 <SelectItem value="Swimming">Swimming</SelectItem>
-                <SelectItem value="Walking">Walking</SelectItem>
                 <SelectItem value="Yoga">Yoga</SelectItem>
                 <SelectItem value="Weight Training">Weight Training</SelectItem>
+                <SelectItem value="Walking">Walking</SelectItem>
                 <SelectItem value="HIIT">HIIT</SelectItem>
                 <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
@@ -128,73 +173,63 @@ export function AddActivityDialog({
             <Label htmlFor="duration" className="text-right">
               Duration
             </Label>
-            <div className="col-span-3 flex items-center gap-2">
-              <Input 
-                id="duration" 
-                type="number" 
-                placeholder="30" 
-                className="w-20" 
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              />
-              <Select value={durationUnit} onValueChange={setDurationUnit}>
-                <SelectTrigger id="duration-unit" className="w-32">
-                  <SelectValue placeholder="Unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="minutes">Minutes</SelectItem>
-                  <SelectItem value="hours">Hours</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Input
+              id="duration"
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              className="col-span-2"
+            />
+            <Select value={durationUnit} onValueChange={setDurationUnit}>
+              <SelectTrigger id="duration-unit">
+                <SelectValue placeholder="Unit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="minutes">minutes</SelectItem>
+                <SelectItem value="hours">hours</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="distance" className="text-right">
               Distance
             </Label>
-            <div className="col-span-3 flex items-center gap-2">
-              <Input 
-                id="distance" 
-                type="number" 
-                placeholder="5" 
-                className="w-20" 
-                value={distance}
-                onChange={(e) => setDistance(e.target.value)}
-              />
-              <Select value={distanceUnit} onValueChange={setDistanceUnit}>
-                <SelectTrigger id="distance-unit" className="w-32">
-                  <SelectValue placeholder="Unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="km">Kilometers</SelectItem>
-                  <SelectItem value="mi">Miles</SelectItem>
-                  <SelectItem value="m">Meters</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Input
+              id="distance"
+              type="number"
+              value={distance}
+              onChange={(e) => setDistance(e.target.value)}
+              className="col-span-2"
+            />
+            <Select value={distanceUnit} onValueChange={setDistanceUnit}>
+              <SelectTrigger id="distance-unit">
+                <SelectValue placeholder="Unit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="km">km</SelectItem>
+                <SelectItem value="mi">mi</SelectItem>
+                <SelectItem value="m">m</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="calories" className="text-right">
               Calories
             </Label>
-            <Input 
-              id="calories" 
-              type="number" 
-              placeholder="300" 
-              className="col-span-3" 
+            <Input
+              id="calories"
+              type="number"
               value={calories}
               onChange={(e) => setCalories(e.target.value)}
+              className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="date" className="text-right">
-              Date
-            </Label>
+            <Label className="text-right">Date</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  id="date"
-                  variant={"outline"}
+                  variant="outline"
                   className={cn(
                     "col-span-3 justify-start text-left font-normal",
                     !date && "text-muted-foreground"
@@ -218,7 +253,7 @@ export function AddActivityDialog({
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Adding..." : "Add Activity"}
+            {isSubmitting ? "Updating..." : "Update Activity"}
           </Button>
         </div>
       </DialogContent>
