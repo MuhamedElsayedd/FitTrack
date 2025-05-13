@@ -38,6 +38,6 @@ FitTrack is a Dashboard web app designed to help users monitor fitness activitie
 
 ## 🛠️ Technology Stack
 - Frontend: React.js with Chart.js
-- Backend: Node.js/Express
+- Backend: Next.js App Router
 - Database: MongoDB
 - Authentication: JWT
