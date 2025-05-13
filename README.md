@@ -1,11 +1,44 @@
-# FitTrack
-A Fitness Tracker Dashboard is a web application designed to help users monitor their fitness activities, track progress, and analyze health metrics. The dashboard provides an interactive and user-friendly interface to log workouts, set fitness goals, and visualize progress through dynamic charts and statistics.
+# FitTrack - Your Personal Fitness Dashboard
 
-🚀 Features
-📊 Real-time Data Visualization – Track fitness progress with interactive charts and graphs.
-🏃‍♂️ Workout Logging – Add and manage workout sessions with details like duration, calories burned, and exercise type.
-🎯 Goal Setting – Set and track fitness goals to stay motivated.
-⏳ Activity History – View past workout logs and trends over time.
-📅 Calendar Integration – Schedule workouts and set reminders.
-📱 Responsive Design – Fully optimized for mobile and desktop views.
-🔐 User Authentication – Secure login and profile management.
+![FitTrack Logo](https://via.placeholder.com/150x50?text=FitTrack+Logo)  
+*A complete fitness tracking solution to monitor your health journey*
+
+FitTrack is a web application designed to help users monitor fitness activities, track progress, and analyze health metrics. The dashboard provides an interactive interface to log workouts, set goals, and visualize progress through dynamic charts.
+
+## 🚀 Key Features
+
+### 📊 Real-time Data Visualization
+- Interactive charts and graphs showing fitness progress
+- Customizable dashboard views
+- Performance trends over time
+
+### � Workout Management
+- ➕ Add new workout sessions
+- 📝 Record duration, calories burned, and exercise type
+- 🗂️ Categorize by workout type (cardio, strength, etc.)
+
+### � Goal Tracking System
+- 🎯 Set SMART fitness goals
+- 📈 Visual progress tracking
+- 🔔 Achievement notifications
+
+### ⏳ Activity History
+- 📑 View complete workout history
+- 🔍 Filter by date, exercise type, or duration
+- 📤 Export data for external analysis
+
+### 📅 Calendar Integration
+- 🗓️ Schedule future workouts
+- ⏰ Set reminders and notifications
+- 🔄 Recurring workout planning
+
+### 🔐 Security & Accessibility
+- 👤 Secure user authentication
+- 🔒 Private profile management
+- 📱 Fully responsive design (mobile & desktop)
+
+## 🛠️ Technology Stack
+- Frontend: React.js with Chart.js
+- Backend: Node.js/Express
+- Database: MongoDB
+- Authentication: JWT
